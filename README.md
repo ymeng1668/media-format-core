@@ -64,6 +64,9 @@ probing. Normal video/PCM muxing uses FFmpeg libraries directly. ADAS parsing
 loads the optional SDK selected by `MEDIA_AI_SDK_DIR`; the archived SDK in
 `doc/` is unpacked into the build tree. For deployed ADAS use, provide the SDK
 directory explicitly rather than relying on a development build path.
+On Linux, the vendor dependency has no SONAME. Installed applications also
+need the selected SDK's `lib` (and, if needed, `opencv453/lib`) directory in
+`LD_LIBRARY_PATH` before launch; build-tree RPATHs are not deployment paths.
 
 ## Provenance And Tests
 
