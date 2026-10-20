@@ -1,0 +1,11 @@
+/build*/
+/bin/
+/cmake-build-*/
+/.idea/
+*.o
+*.a
+*.so
+*.dll
+*.lib
+*.exp
+*.pdb

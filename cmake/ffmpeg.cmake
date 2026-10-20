@@ -1,0 +1,21 @@
+# A parent may supply its platform-specific dependency target. Standalone
+# builds resolve FFmpeg themselves without depending on the parent project.
+if(TARGET media-format-ffmpeg)
+    target_link_libraries(media-format-core PRIVATE media-format-ffmpeg)
+elseif(MSVC)
+    set(FFMPEG_DIR "C:/ffmpeg_static" CACHE PATH "FFmpeg installation")
+    set(MEDIA_FORMAT_FFMPEG_EXTRA_LIBRARIES "" CACHE STRING "Additional static FFmpeg dependencies")
+    find_path(MEDIA_FORMAT_FFMPEG_INCLUDE libavformat/avformat.h HINTS "${FFMPEG_DIR}/include" REQUIRED)
+    target_include_directories(media-format-core PRIVATE "${MEDIA_FORMAT_FFMPEG_INCLUDE}")
+    foreach(_lib avformat avcodec avutil swresample)
+        find_library(MEDIA_FORMAT_${_lib} NAMES ${_lib} HINTS "${FFMPEG_DIR}/lib" REQUIRED)
+        target_link_libraries(media-format-core PRIVATE "${MEDIA_FORMAT_${_lib}}")
+    endforeach()
+    target_link_libraries(media-format-core PRIVATE ${MEDIA_FORMAT_FFMPEG_EXTRA_LIBRARIES}
+        ws2_32 secur32 bcrypt mfplat mfuuid strmiids ole32)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(MEDIA_FORMAT_FFMPEG REQUIRED IMPORTED_TARGET
+        libavformat libavcodec libavutil libswresample)
+    target_link_libraries(media-format-core PRIVATE PkgConfig::MEDIA_FORMAT_FFMPEG)
+endif()
