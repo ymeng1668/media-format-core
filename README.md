@@ -70,6 +70,14 @@ need the selected SDK's `lib` (and, if needed, `opencv453/lib`) directory in
 
 ## Provenance And Tests
 
+The shared [documentation directory](doc/) includes the
+[SDK snapshot](doc/streamax_ainfo_parse_api/2026-09-22/README.md),
+[privacy protection gaps](doc/privacy_protection.md), and
+[consumer integration notes](doc/media_format_integration.md), and
+[extractor integration history](doc/media_sync.md).
+The former `n9m_engine/doc/` and `media-extractor/doc/` trees have been
+consolidated here, retaining identical existing documents only once.
+
 Media-only code was extracted from the synchronized media-extractor sources
 after commit `fc2a068`; the common muxer originated in n9m_engine `v0.1.0`.
 Protocol-specific code was not imported. Source comments and vendor documents
