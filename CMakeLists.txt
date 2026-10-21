@@ -5,7 +5,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 option(MEDIA_FORMAT_BUILD_TESTS "Build shared media-format regression tests" ${BUILD_TESTING})
-option(MEDIA_FORMAT_ENABLE_PYTHON_BRIDGE "Enable optional CPython RGB frame processing" OFF)
+option(MEDIA_FORMAT_ENABLE_PYTHON_BRIDGE "Enable optional CPython RGB frame processing" ON)
 set(MEDIA_FORMAT_RUNTIME_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin" CACHE PATH "Media shared-library output directory")
 
 find_path(RAPIDJSON_INCLUDE_DIR rapidjson/document.h)

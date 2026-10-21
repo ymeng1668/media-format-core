@@ -22,7 +22,8 @@ face/license-plate privacy plugin. It does not change the metadata renderer.
 ## Build
 
 Requires a C++17 compiler, RapidJSON and FFmpeg development libraries
-(`libavformat`, `libavcodec`, `libavutil`, `libswresample`).
+(`libavformat`, `libavcodec`, `libavutil`, `libswresample`, `libswscale`),
+and Python 3.11+ development headers/libraries for the default Python-enabled build.
 Unix/MinGW standalone builds discover FFmpeg using pkg-config.
 For MSVC set `FFMPEG_DIR`; static builds may additionally need
 `MEDIA_FORMAT_FFMPEG_EXTRA_LIBRARIES` with all transitive codec/system libraries.
@@ -39,7 +40,7 @@ Set `MEDIA_FORMAT_RUNTIME_DIR` to override the runtime output directory.
 Disable tests with `-DMEDIA_FORMAT_BUILD_TESTS=OFF`.
 PIC and shared MSVC CRT are enabled; Windows symbols are exported.
 
-## Optional Python Frame Processing
+## Python Frame Processing
 
 `media_format::CorePythonBridge` is declared in
 `include/media-format/core_python_bridge.h`. It accepts owned RGB24 CPU memory,
@@ -47,16 +48,18 @@ row stride, frame index and microsecond PTS; it returns structured JSON and
 updates those pixels in place. It has no native dependency on pybind11,
 a model registry, or any particular detector.
 
-The default `MEDIA_FORMAT_ENABLE_PYTHON_BRIDGE=OFF` retains the original native
-dependency set. The API remains present but reports that Python is unavailable.
-To enable it, install Python 3.11+ development headers/libraries, FFmpeg's
-libswscale development files, and NumPy in the selected interpreter.
+`MEDIA_FORMAT_ENABLE_PYTHON_BRIDGE` defaults to `ON`, including when this
+project is built by either application. Install Python 3.11+ development
+headers/libraries, FFmpeg's libswscale development files, and NumPy in the
+selected interpreter. Set `-DMEDIA_FORMAT_ENABLE_PYTHON_BRIDGE=OFF` explicitly
+for a build without Python; the API then reports that Python is unavailable.
+Existing build directories configured with `OFF` retain that cached value;
+reconfigure them once with `-DMEDIA_FORMAT_ENABLE_PYTHON_BRIDGE=ON`.
 On Ubuntu, `sudo apt install python3-dev python3-venv libswscale-dev`
 provides the native development files. Then configure:
 
 ```bash
 cmake -S . -B build-python -DCMAKE_BUILD_TYPE=Release \
-  -DMEDIA_FORMAT_ENABLE_PYTHON_BRIDGE=ON \
   -DPython3_EXECUTABLE=/absolute/venv/bin/python
 cmake --build build-python -j4
 ctest --test-dir build-python --output-on-failure
@@ -140,7 +143,7 @@ decodes the primary video stream, calls the bridge on each RGB frame, and
 encodes H.264 MP4 while copying audio and subtitle packets. It preserves
 presentation timestamps and publishes output only after all frames, codec
 flushes, and processor teardown succeed. Blocked/invalid frames abort the file.
-It requires libx264 and even video dimensions; the default bridge-disabled
+It requires libx264 and even video dimensions; an explicitly bridge-disabled
 build provides an unavailable stub without adding libswscale.
 
 ## Integration

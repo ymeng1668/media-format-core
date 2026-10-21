@@ -99,7 +99,7 @@ coverage validation. The plugin emits readiness, region and timing metrics.
 
 ## Run through n9m_app
 
-Build the parent project with `MEDIA_FORMAT_ENABLE_PYTHON_BRIDGE=ON` and
+The Python bridge is enabled by default. Build the parent project with
 `Python3_EXECUTABLE` set to the chosen virtualenv. From the parent repository
 root, after installing models:
 
