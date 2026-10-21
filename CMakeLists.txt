@@ -5,6 +5,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 option(MEDIA_FORMAT_BUILD_TESTS "Build shared media-format regression tests" ${BUILD_TESTING})
+option(MEDIA_FORMAT_ENABLE_PYTHON_BRIDGE "Enable optional CPython RGB frame processing" OFF)
 set(MEDIA_FORMAT_RUNTIME_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin" CACHE PATH "Media shared-library output directory")
 
 find_path(RAPIDJSON_INCLUDE_DIR rapidjson/document.h)
@@ -17,6 +18,8 @@ add_library(media-format-core SHARED
     src/forward_privacy.cpp
     src/metadata_timing.cpp
     src/privacy_render.cpp
+    src/core_python_bridge.cpp
+    src/python_video_render.cpp
     src/mp4_metadata.cpp
     src/url_writer.cpp
     third_party/AdpcmCodec.cpp)
@@ -39,7 +42,16 @@ target_include_directories(media-format-core PUBLIC
     "$<INSTALL_INTERFACE:include>"
     "$<INSTALL_INTERFACE:include/media-format>")
 target_include_directories(media-format-core PRIVATE "${RAPIDJSON_INCLUDE_DIR}")
-target_link_libraries(media-format-core PRIVATE ${CMAKE_DL_LIBS})
+find_package(Threads REQUIRED)
+target_link_libraries(media-format-core PRIVATE ${CMAKE_DL_LIBS} Threads::Threads)
+target_compile_definitions(media-format-core PRIVATE
+    MEDIA_FORMAT_ENABLE_PYTHON_BRIDGE=$<BOOL:${MEDIA_FORMAT_ENABLE_PYTHON_BRIDGE}>)
+if(MEDIA_FORMAT_ENABLE_PYTHON_BRIDGE)
+    find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter Development)
+    target_link_libraries(media-format-core PRIVATE Python3::Python)
+    install(FILES plugin/python/media_format_frame_runtime.py
+        DESTINATION share/media-format-core/python)
+endif()
 include(cmake/prepare_ai_sdk.cmake)
 include(cmake/ffmpeg.cmake)
 if(APPLE)
@@ -61,10 +73,37 @@ if(MEDIA_FORMAT_BUILD_TESTS)
     add_executable(media_format_forward_test tests/forward_privacy_test.cpp)
     target_link_libraries(media_format_forward_test PRIVATE media-format::core)
     add_test(NAME media_format_forward COMMAND media_format_forward_test)
+    add_executable(media_format_python_bridge_test tests/python_bridge_test.cpp)
+    target_link_libraries(media_format_python_bridge_test PRIVATE media-format::core Threads::Threads)
+    target_compile_definitions(media_format_python_bridge_test PRIVATE
+        MEDIA_FORMAT_TEST_PYTHON_HOST=$<BOOL:${MEDIA_FORMAT_ENABLE_PYTHON_BRIDGE}>)
+    if(MEDIA_FORMAT_ENABLE_PYTHON_BRIDGE)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/python_bridge_video.cpp")
+            add_executable(media_format_python_video_probe EXCLUDE_FROM_ALL tests/python_bridge_video.cpp)
+            target_link_libraries(media_format_python_video_probe PRIVATE media-format::core)
+        endif()
+        target_link_libraries(media_format_python_bridge_test PRIVATE Python3::Python)
+        add_test(NAME media_format_python_bridge COMMAND media_format_python_bridge_test
+            "${CMAKE_CURRENT_SOURCE_DIR}/plugin/python" "${CMAKE_CURRENT_SOURCE_DIR}/tests" "${Python3_EXECUTABLE}")
+        add_test(NAME media_format_python_host COMMAND media_format_python_bridge_test
+            "${CMAKE_CURRENT_SOURCE_DIR}/plugin/python" "${CMAKE_CURRENT_SOURCE_DIR}/tests" "${Python3_EXECUTABLE}" host)
+        set_tests_properties(media_format_python_bridge media_format_python_host PROPERTIES
+            TIMEOUT 60 ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+    else()
+        add_test(NAME media_format_python_disabled COMMAND media_format_python_bridge_test)
+    endif()
     if(WIN32)
         add_custom_command(TARGET media_format_forward_test POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:media-format-core>"
                 "$<TARGET_FILE_DIR:media_format_forward_test>" VERBATIM)
+        add_custom_command(TARGET media_format_python_bridge_test POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:media-format-core>"
+                "$<TARGET_FILE_DIR:media_format_python_bridge_test>" VERBATIM)
+        if(TARGET media_format_python_video_probe)
+            add_custom_command(TARGET media_format_python_video_probe POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:media-format-core>"
+                    "$<TARGET_FILE_DIR:media_format_python_video_probe>" VERBATIM)
+        endif()
     endif()
 endif()
 

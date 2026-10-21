@@ -14,8 +14,10 @@ to build this library.
 
 There is no camera protocol, socket listener, authentication, camera control,
 download/live transport, AES decryption, or CLI entry point. Consumers unwrap
-their own transports and provide media payloads. The library is not a detector:
-privacy rendering depends on available metadata and verified timing.
+their own transports and provide media payloads. Existing privacy rendering
+depends on available metadata and verified timing. An optional generic Python
+frame bridge now supports image-based processing, including a separate
+face/license-plate privacy plugin. It does not change the metadata renderer.
 
 ## Build
 
@@ -36,6 +38,110 @@ Output: `build/bin/libmedia-format-core.so` (Linux),
 Set `MEDIA_FORMAT_RUNTIME_DIR` to override the runtime output directory.
 Disable tests with `-DMEDIA_FORMAT_BUILD_TESTS=OFF`.
 PIC and shared MSVC CRT are enabled; Windows symbols are exported.
+
+## Optional Python Frame Processing
+
+`media_format::CorePythonBridge` is declared in
+`include/media-format/core_python_bridge.h`. It accepts owned RGB24 CPU memory,
+row stride, frame index and microsecond PTS; it returns structured JSON and
+updates those pixels in place. It has no native dependency on pybind11,
+a model registry, or any particular detector.
+
+The default `MEDIA_FORMAT_ENABLE_PYTHON_BRIDGE=OFF` retains the original native
+dependency set. The API remains present but reports that Python is unavailable.
+To enable it, install Python 3.11+ development headers/libraries, FFmpeg's
+libswscale development files, and NumPy in the selected interpreter.
+On Ubuntu, `sudo apt install python3-dev python3-venv libswscale-dev`
+provides the native development files. Then configure:
+
+```bash
+cmake -S . -B build-python -DCMAKE_BUILD_TYPE=Release \
+  -DMEDIA_FORMAT_ENABLE_PYTHON_BRIDGE=ON \
+  -DPython3_EXECUTABLE=/absolute/venv/bin/python
+cmake --build build-python -j4
+ctest --test-dir build-python --output-on-failure
+```
+
+On Windows, select a matching-architecture Python installation and build with
+`--config Release`; on macOS, select the desired Python executable explicitly.
+Linux is verified locally; Windows/macOS runtime qualification was not performed.
+
+Example after the caller decodes/converts a frame to RGB24:
+
+```cpp
+#include <media-format/core_python_bridge.h>
+#include <vector>
+
+media_format::PythonProcessorOptions options;
+options.module = "privacy_redaction";
+options.class_name = "PrivacyRedactionProcessor";
+options.python_paths = {"/absolute/checkout/plugin/python",
+                        "/absolute/checkout/plugin/python/ai/privacy-redaction"};
+options.python_executable = "/absolute/venv/bin/python";
+options.config_json = R"({"preset":"balanced","mode":"pixelate"})";
+
+media_format::CorePythonBridge bridge;
+std::string error;
+if (!bridge.open(options, error)) {
+    // Report through the caller's logger; do not publish unprocessed video.
+    return;
+}
+auto storage = std::make_shared<std::vector<uint8_t>>(width * height * 3);
+// Decode into storage, or retain an existing decoder allocation via frame.owner.
+media_format::PythonVideoFrame frame;
+frame.data = storage->data();
+frame.size = storage->size();
+frame.width = width;
+frame.height = height;
+frame.stride = width * 3;
+frame.pts_us = pts_us;
+frame.frame_index = frame_index;
+frame.owner = storage;
+media_format::PythonFrameResult result;
+if (!bridge.process(frame, result) || !result.valid || result.blocked) {
+    // Black output can be intentional fail-closed behavior; never bypass it.
+    return;
+}
+// Consume processed RGB pixels and result.json; close before Python shutdown.
+bridge.close(error);
+```
+
+One processor instance belongs to one source. Submit in source order; there is
+no timestamp-sorting queue. Calls are synchronous and serialized, with one
+Python-created worker per instance. The bridge borrows pixels without a frame
+copy; a different output buffer returned by the plugin is copied back. Aliases
+of the original view are not copied. Python-held views retain the native
+allocation; callers must not mutate/recycle storage with outstanding owners.
+
+If the application already owns CPython, the bridge attaches without replacing
+or finalizing it. That host must initialize its interpreter before starting
+native work, close all bridges before finalization, and keep the library loaded
+until retained Python views are released. Plugins must release their workers
+and resources in `close()`. Import paths/module names are process-wide CPython
+state, not tenant isolation. The bridge returns errors to the caller's logger;
+Python plugins are trusted code, not a sandbox.
+
+Custom processors implement `process(rgb_array, metadata)` and return a dict
+with Boolean `valid`, optional Boolean `degraded`/`blocked`, optional `frame`
+(same-size uint8 RGB), and JSON-compatible metadata. Configuration is passed as
+constructor keyword arguments. `reset()`/`close()` are optional. By default,
+errors black out a valid input frame, preserving padding; invalid/unowned input
+is rejected without dereferencing it. Generic callers can explicitly set
+`block_on_failure=false`; privacy workflows should retain the default.
+
+Only the generic Python runtime is installed when the bridge is enabled.
+The privacy plugin (`plugin/python/ai/privacy-redaction` in the development checkout),
+its models/runtime environment and the privacy evidence tool are never installed. Git source
+archives exclude those files through `.gitattributes`. Enabling the
+generic bridge does not authorize distributing privacy dependencies.
+
+For file processing, `render_python_video()` in `python_video_render.h`
+decodes the primary video stream, calls the bridge on each RGB frame, and
+encodes H.264 MP4 while copying audio and subtitle packets. It preserves
+presentation timestamps and publishes output only after all frames, codec
+flushes, and processor teardown succeed. Blocked/invalid frames abort the file.
+It requires libx264 and even video dimensions; the default bridge-disabled
+build provides an unavailable stub without adding libswscale.
 
 ## Integration
 

@@ -1,0 +1,3 @@
+# Python frame-processing and face/license-plate privacy environment.
+# Model weights and the optional native Tesseract executable are installed separately.
+-r ai/privacy-redaction/requirements.txt

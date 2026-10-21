@@ -1,0 +1,11 @@
+{
+  "preset": "balanced",
+  "mode": "highlight",
+  "targets": ["face", "license_plate"],
+  "automatic_detection_required": true,
+  "plate_mask_policy": "confirmed_detected",
+  "plate_ocr_enabled": true,
+  "emit_plate_text": false,
+  "emit_plate_candidates": false,
+  "save_recognized_plates": false
+}

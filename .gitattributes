@@ -1,0 +1,5 @@
+# Optional privacy plugin files are excluded from native source archives.
+/plugin/python/ai/privacy-redaction export-ignore
+/plugin/python/requirements.txt export-ignore
+/tests/python_privacy export-ignore
+/tests/python_bridge_video.cpp export-ignore

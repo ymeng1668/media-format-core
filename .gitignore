@@ -9,3 +9,7 @@
 *.lib
 *.exp
 *.pdb
+__pycache__/
+*.py[cod]
+.pytest_cache/
+/qa/out/

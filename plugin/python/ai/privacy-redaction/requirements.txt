@@ -1,0 +1,8 @@
+# Python dependencies for face and license-plate privacy processing.
+numpy>=1.24,<3
+opencv-python-headless>=4.10,<5
+onnxruntime>=1.16,<2
+# Default local person/vehicle tracker. AGPL-3.0 or separately agreed commercial rights.
+ultralytics>=8.2,<9
+# Plate OCR is enabled by default; install the native Tesseract executable too.
+pytesseract>=0.3.10,<1

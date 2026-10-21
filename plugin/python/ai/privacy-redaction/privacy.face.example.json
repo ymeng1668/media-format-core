@@ -1,0 +1,9 @@
+{
+  "preset": "balanced",
+  "mode": "pixelate",
+  "targets": ["face"],
+  "auto_object_track": false,
+  "person_head_fallback": false,
+  "automatic_detection_required": true,
+  "fail_policy": "block_frame"
+}
